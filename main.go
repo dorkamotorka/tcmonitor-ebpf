@@ -60,8 +60,13 @@ func getFuncName(prog *ebpf.Program) (string, error) {
 	return "", fmt.Errorf("no entry function found in program")
 }
 
-func lookupAndPrintStats(ebpfMap *ebpf.Map) {
+func lookupAndPrintStats(ebpfMap *ebpf.Map, prevValues map[string]uint64, prevTime *time.Time) {
 	fmt.Println("\nTC Actions:")
+	now := time.Now()
+ 	deltaTime := now.Sub(*prevTime).Seconds()
+ 	if deltaTime == 0 {
+ 		return // Avoid division by zero
+ 	}
 	for _, action := range tcKeyOrder {
 		key := tcKeys[action]
 		var value uint64
@@ -69,8 +74,12 @@ func lookupAndPrintStats(ebpfMap *ebpf.Map) {
 			log.Printf("Error looking up %s: %v", action, err)
 			continue
 		}
-		fmt.Printf("%s: %d\n", action, value)
+		prev := prevValues[action]
+ 		prevValues[action] = value
+ 		rate := float64(value-prev) / deltaTime
+ 		fmt.Printf("%s: %d (Rate: %.2f/s)\n", action, value, rate)
 	}
+	*prevTime = now
 }
 
 func main() {
@@ -131,6 +140,9 @@ func main() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
+ 	prevValues := make(map[string]uint64)
+ 	prevTime := time.Now()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -138,7 +150,7 @@ func main() {
 			return
 		case <-ticker.C:
 			fmt.Print("\033[H\033[J") // Clear screen
-			lookupAndPrintStats(obj.TcActionCountMap)
+			lookupAndPrintStats(obj.TcActionCountMap, prevValues, &prevTime)
 		}
 	}
 }
