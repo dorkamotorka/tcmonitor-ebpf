@@ -84,7 +84,7 @@ func lookupAndPrintStats(ebpfMap *ebpf.Map, prevValues map[string]uint64, prevTi
 
 func main() {
 	var tcProgID int
-	pflag.IntVarP(&tcProgID, "tc_program_id", "t", 0, "TC program ID to trace")
+	pflag.IntVarP(&tcProgID, "tc-program-id", "i", 0, "TC program ID to trace")
 	pflag.Parse()
 
 	if tcProgID == 0 {
